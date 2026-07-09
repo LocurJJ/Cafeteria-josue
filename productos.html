@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productos - Ponte Dulce</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="barra-superior">
+    <button onclick="location.href='index.html'">Inicio</button>
+    <button onclick="location.href='vender.html'">Vender</button>
+    <button onclick="location.href='compras.html'">Compras</button>
+    <button class="activo">Productos</button>
+    <span class="usuario">Usuario: Josué</span>
+  </header>
+  <main class="contenedor-productos">
+    <section class="panel-productos">
+      <h2>Añadir producto</h2>
+      <form id="formProducto" class="form-productos">
+        <label>Nombre<input id="nombreProducto" type="text" required placeholder="Ej: Cafe con leche"></label>
+        <label>Precio<input id="precioProducto" type="number" min="1" step="1" required placeholder="1400"></label>
+        <label>Categoria<select id="categoriaProducto" required><option value="combos">Combos</option><option value="bebidas">Café / Té</option><option value="exprimidos">Exprimidos</option><option value="salado">Salado</option><option value="dulce">Dulce</option><option value="panaderia">Panaderia</option><option value="almacen">Almacen</option><option value="otros">Otros</option></select></label>
+        <label>Tipo de producto<select id="tipoProducto" required><option value="preparado">Producto que preparamos</option><option value="comprado">Producto comprado hecho</option></select></label>
+        <div id="recetaProducto" class="bloque-receta">
+          <div class="titulo-linea"><h3>Ingredientes por unidad</h3><button type="button" class="boton-secundario" onclick="agregarFilaIngrediente()">Añadir</button></div>
+          <div id="filasIngredientes" class="filas-ingredientes"></div>
+        </div>
+        <button type="submit">Guardar producto</button>
+      </form>
+    </section>
+    <section class="panel-productos"><h2>Productos cargados</h2><div id="listaProductos" class="grilla-productos"></div></section>
+  </main>
+  <script src="productos.js"></script>
+</body>
+</html>
