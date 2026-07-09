@@ -1,0 +1,128 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Segoe UI", Arial, sans-serif; background: linear-gradient(90deg, #08142f 0%, #061127 42%, #041022 100%); color: white; min-height: 100vh; }
+button, input, select { font: inherit; }
+button { transition: background .2s, transform .2s, border-color .2s; }
+button:hover { transform: translateY(-1px); }
+.encabezado { width: min(1200px, 100%); margin: auto; padding: 32px 20px 18px; }
+.encabezado h1 { font-size: clamp(34px, 6vw, 60px); margin: 0; font-weight: 800; line-height: 1.05; }
+.bienvenida { color: #73f5a9; font-size: clamp(16px, 2vw, 20px); }
+nav, .menu-principal { width: min(1200px, 100%); margin: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; padding: 20px; }
+nav button, .menu-principal button { background: #1c2940; border: 1px solid #304a72; border-radius: 10px; color: white; min-height: 92px; font-size: clamp(18px, 3vw, 24px); font-weight: 700; cursor: pointer; }
+.barra-superior { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 14px 16px; background: #101c33; position: sticky; top: 0; z-index: 10; }
+.barra-superior button, .boton-secundario { padding: 11px 16px; border-radius: 8px; border: 1px solid #304a72; background: #1c2940; color: white; cursor: pointer; font-weight: 700; }
+.barra-superior button.activo, .boton-secundario.activo, .boton-primario, .categorias button, .producto-card button, .acciones-pedido button, .form-productos button, .modal-pago button { border: 0; border-radius: 8px; background: #3378ff; color: white; cursor: pointer; font-weight: 800; }
+.usuario { margin-left: auto; font-weight: 800; background: #114ed8; padding: 4px 6px; }
+.contenedor-venta { display: grid; grid-template-columns: minmax(190px, 240px) minmax(600px, 1fr) minmax(320px, 390px); gap: 18px; padding: 18px; align-items: start; }
+.panel-izquierdo, .panel-derecho, .panel-central, .panel-productos { background: #1c2940; border: 1px solid #304a72; border-radius: 12px; padding: 20px; }
+.panel-izquierdo h2, .panel-derecho h2, .panel-productos h2, .cola-pedidos h2 { margin-top: 0; }
+.lista-mesas, .lista-orden { display: grid; gap: 10px; }
+.mesa-resumen, .orden-card { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 10px 12px; border: 1px solid #304a72; border-radius: 8px; background: #142037; color: white; text-align: left; cursor: pointer; }
+.orden-card { grid-template-columns: 1fr; }
+.orden-card span { color: #b7c8e7; font-size: 14px; }
+.herramientas-mapa { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+.centro-venta { display: grid; grid-template-columns: minmax(380px, 520px) minmax(220px, 1fr); gap: 18px; align-items: stretch; }
+.zona-local { position: relative; min-height: 520px; aspect-ratio: 1 / 1.18; background: #0d1729; border-radius: 12px; border: 2px solid #304a72; overflow: hidden; touch-action: none; }
+.zona-local.editando { border-color: #73f5a9; box-shadow: inset 0 0 0 2px rgba(115,245,169,.25); }
+.cola-pedidos { border-left: 1px solid #304a72; padding-left: 18px; min-width: 0; }
+.sector { position: absolute; background: #263754; border: 1px solid #405b86; padding: 18px; border-radius: 8px; min-width: 74px; text-align: center; }
+.sector-bano { top: 6%; left: 10%; }
+.sector-caja { top: 6%; right: 10%; }
+.mesa { position: absolute; width: 68px; height: 68px; transform: translate(-50%, -50%); border-radius: 50%; font-size: 24px; font-weight: 800; color: white; cursor: pointer; border: 3px solid white; display: grid; place-items: center; user-select: none; }
+.mesa:hover { transform: translate(-50%, -50%); }
+.mesa.movible { cursor: grab; border-style: dashed; }
+.libre { background: #111; }
+.preparacion { background: #f59f00; color: #111; }
+.entregado { background: #0a8f3c; }
+.mesa.seleccionada { outline: 4px solid #3378ff; outline-offset: 3px; }
+.categorias { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.categorias button.activo { background: #f59f00 !important; color: #111 !important; }
+.categorias button, .producto-card button, .acciones-pedido button, .form-productos button, .modal-pago button { padding: 11px 13px; }
+.productos-venta, .grilla-productos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.producto-card { border: 1px solid #304a72; border-radius: 8px; padding: 12px; background: #142037; display: grid; gap: 8px; }
+.producto-card.categoria-salado, .producto-card.categoria-dulce { background: #137f73; }
+.producto-card.categoria-combos, .producto-card.categoria-bebidas, .producto-card.categoria-exprimidos { background: #2557d7; }
+.producto-card.categoria-panaderia { background: #137f73; }
+.producto-card.categoria-almacen { background: #6f5bd7; }
+.producto-card.categoria-otros { background: #4c627f; }
+.producto-card strong { display: block; }
+.producto-card span, .producto-card small, .pedido-vacio, .producto-categoria { color: #b7c8e7; }
+.pedido-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pedido-lista li { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; border-bottom: 1px solid #304a72; padding-bottom: 8px; }
+.pedido-lista button { width: 32px; height: 32px; border: 1px solid #304a72; border-radius: 8px; background: #1c2940; color: white; cursor: pointer; }
+.total { font-size: 24px; font-weight: 800; }
+.estado-mesa { display: inline-flex; padding: 6px 10px; border-radius: 999px; background: #142037; color: #b7c8e7; font-weight: 800; margin-bottom: 12px; }
+.cliente-panaderia { display: none; }
+.cliente-panaderia label { display: block; margin-bottom: 6px; font-weight: 700; }
+.cliente-panaderia select { width: 100%; border-radius: 8px; border: 1px solid #405b86; background: #0d1729; color: white; padding: 11px; margin-bottom: 14px; }
+.cabecera-compra { display: grid; grid-template-columns: 1fr 64px 92px 32px; gap: 10px; color: #d5e3ff; font-size: 12px; margin-bottom: 10px; }
+.compra-panaderia { min-height: calc(100vh - 120px); display: flex; flex-direction: column; }
+.compra-panaderia h2 { margin-bottom: 8px; }
+.compra-panaderia h3 { display: none; }
+.compra-panaderia .estado-mesa { display: none; }
+.compra-panaderia .cliente-panaderia { display: block; }
+.compra-panaderia .pedido-lista { flex: 1; align-content: start; }
+.compra-panaderia .pedido-lista li { grid-template-columns: 1fr 64px 92px 32px; gap: 10px; font-size: 13px; }
+.compra-panaderia .pedido-lista li > span:nth-child(2), .compra-panaderia .pedido-lista li strong { text-align: center; }
+.compra-panaderia .pedido-lista .pedido-vacio { display: block; border: 0; align-self: end; }
+.compra-panaderia .total { margin-top: 18px; }
+.compra-panaderia .acciones-pedido button { display: none; }
+.compra-panaderia .acciones-pedido .boton-cobrar { display: block; width: 100%; background: #3378ff !important; color: white !important; }
+.acciones-pedido { display: flex; flex-wrap: wrap; gap: 8px; }
+.acciones-pedido button:disabled, .producto-card button:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.boton-entregar { background: #12a150 !important; }
+.boton-cobrar { background: #f59f00 !important; color: #111 !important; }
+.contenedor-productos { width: min(1100px, 100%); margin: 0 auto; padding: 18px; display: grid; grid-template-columns: 360px 1fr; gap: 18px; }
+.form-productos { display: grid; gap: 12px; }
+.form-productos label { display: grid; gap: 6px; font-weight: 700; }
+.form-productos input, .form-productos select { width: 100%; border-radius: 8px; border: 1px solid #405b86; background: #0d1729; color: white; padding: 11px; }
+.bloque-receta { display: grid; gap: 10px; border: 1px solid #304a72; border-radius: 8px; padding: 12px; background: #142037; }
+.titulo-linea { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.titulo-linea h3 { margin: 0; font-size: 16px; }
+.filas-ingredientes { display: grid; gap: 8px; }
+.fila-ingrediente { display: grid; grid-template-columns: 1fr 100px auto; gap: 8px; }
+.modal-pago { position: fixed; inset: 0; background: rgba(4, 10, 20, .76); display: none; align-items: center; justify-content: center; padding: 18px; z-index: 30; }
+.modal-pago.abierto { display: flex; }
+.modal-contenido { width: min(420px, 100%); background: #1c2940; border: 1px solid #405b86; border-radius: 12px; padding: 22px; box-shadow: 0 20px 80px rgba(0,0,0,.45); }
+.modal-total { font-size: 34px; font-weight: 900; margin: 10px 0 18px; }
+.opciones-pago { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.campos-pago { display: grid; gap: 12px; margin: 16px 0; }
+.campos-pago label { display: grid; grid-template-columns: 1fr 140px; gap: 12px; align-items: center; border: 1px solid #304a72; border-radius: 8px; padding: 12px; background: #101a2c; font-weight: 800; }
+.campos-pago input, .panel-turno input { width: 100%; border-radius: 8px; border: 1px solid #405b86; background: #0d1729; color: white; padding: 11px; }
+.estado-pago { display: inline-flex; justify-self: center; padding: 7px 12px; border-radius: 999px; margin: -8px 0 2px; font-weight: 800; }
+.estado-pago.falta { background: #9a6200; color: #ffdca3; }
+.estado-pago.pagado { background: #075c2b; color: #9dffbf; }
+.boton-redondo { width: 34px; height: 34px; border-radius: 50% !important; padding: 0 !important; background: #34445e !important; display: inline-grid; place-items: center; }
+.boton-peligro { background: #df2429 !important; }
+.campo-usuario { display: grid; gap: 8px; margin: 16px 0; font-weight: 800; }
+.campo-usuario input { width: 100%; border-radius: 8px; border: 1px solid #405b86; background: #0d1729; color: white; padding: 11px; }
+.ticket-impresion { display: none; }
+.area-panaderia { display: none; }
+.panaderia-layout { grid-template-columns: minmax(300px, 360px) minmax(600px, 1fr); }
+.panaderia-layout .panel-izquierdo { display: none; }
+.panaderia-layout .panel-derecho { grid-column: 1; grid-row: 1; }
+.panaderia-layout .panel-central { grid-column: 2; grid-row: 1; min-height: calc(100vh - 120px); }
+.panel-central.modo-panaderia .herramientas-mapa, .panel-central.modo-panaderia .centro-venta { display: none; }
+.panel-central.modo-panaderia .area-panaderia { display: block; }
+.panel-central.modo-panaderia .catalogo-venta { display: grid; gap: 16px; }
+.panel-central.modo-panaderia .productos-venta { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); align-items: stretch; }
+.panel-central.modo-panaderia .producto-card { min-height: 110px; align-content: start; }
+.venta-directa { cursor: default; }
+.modal-turno, .modal-cuaderno { width: min(1180px, 100%); max-height: 86vh; overflow: auto; }
+.turno-layout { display: grid; grid-template-columns: minmax(420px, 1fr) 300px; gap: 14px; align-items: start; }
+.panel-turno { border: 1px solid #304a72; border-radius: 8px; padding: 12px; display: grid; gap: 10px; }
+.panel-turno h3 { margin: 0; }
+.fila-resumen, .movimientos-lista li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #304a72; padding: 7px 0; }
+.movimientos-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.lista-cuaderno { display: grid; gap: 12px; }
+.venta-cuaderno { border: 1px solid #304a72; border-radius: 8px; background: #142037; padding: 12px; display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: center; }
+.venta-cuaderno.cancelada { opacity: .58; }
+.venta-cuaderno small { display: block; color: #b7c8e7; margin-top: 3px; }
+.boton-facturar { background: #067a4d !important; }
+.boton-facturar:disabled, .boton-redondo:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.venta-cuaderno ul { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 6px; }
+.venta-cuaderno li { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #304a72; padding-bottom: 6px; }
+.venta-cuaderno p { margin: 0; font-size: 18px; font-weight: 800; }
+@media print { body * { visibility: hidden; } .ticket-impresion, .ticket-impresion * { visibility: visible; } .ticket-impresion { display: block; position: absolute; inset: 0 auto auto 0; width: 280px; color: black; background: white; padding: 14px; font-family: Arial, sans-serif; } }
+@media (max-width: 1280px) { .contenedor-venta { grid-template-columns: minmax(200px, 260px) minmax(520px, 1fr); } .panel-derecho { grid-column: 1 / -1; } }
+@media (max-width: 900px) { .centro-venta, .contenedor-productos, .panaderia-layout, .turno-layout { grid-template-columns: 1fr; } .panaderia-layout .panel-derecho, .panaderia-layout .panel-central { grid-column: auto; grid-row: auto; } .cola-pedidos { border-left: 0; border-top: 1px solid #304a72; padding-left: 0; padding-top: 16px; } }
+@media (max-width: 760px) { .barra-superior { align-items: stretch; } .barra-superior button { flex: 1 1 42%; } .usuario { margin-left: 0; width: 100%; text-align: center; } .contenedor-venta, .contenedor-productos { grid-template-columns: 1fr; padding: 12px; } .panel-izquierdo, .panel-central, .panel-derecho, .panel-productos { padding: 14px; } .zona-local { min-height: 420px; } .sector { padding: 12px; } .mesa { width: 52px; height: 52px; font-size: 18px; } .productos-venta, .grilla-productos { grid-template-columns: 1fr; } .fila-ingrediente { grid-template-columns: 1fr; } }
