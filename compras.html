@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compras - Ponte Dulce</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="barra-superior">
+    <button onclick="location.href='index.html'">Inicio</button>
+    <button onclick="location.href='vender.html'">Vender</button>
+    <button onclick="location.href='productos.html'">Productos</button>
+    <button class="activo">Compras</button>
+    <span class="usuario">Usuario: Josué</span>
+  </header>
+  <main class="contenedor-productos">
+    <section class="panel-productos">
+      <h2>Ingreso de ingredientes</h2>
+      <form id="formCompra" class="form-productos">
+        <label>Ingrediente<input id="nombreIngrediente" type="text" required placeholder="Ej: Cafe"></label>
+        <label>Cantidad<input id="cantidadIngrediente" type="number" min="0.001" step="0.001" required placeholder="5"></label>
+        <label>Unidad<select id="unidadIngrediente"><option value="kg">kg</option><option value="g">g</option></select></label>
+        <button type="submit">Registrar compra</button>
+      </form>
+    </section>
+    <section class="panel-productos"><h2>Stock de ingredientes</h2><div id="listaStock" class="grilla-productos"></div></section>
+  </main>
+  <script src="compras.js"></script>
+</body>
+</html>
