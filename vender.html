@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vender - Ponte Dulce</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="barra-superior">
+    <button onclick="location.href='index.html'">Inicio</button>
+    <button id="btnCafeteria" class="activo" onclick="mostrarModo('cafeteria')">Cafeteria</button>
+    <button id="btnPanaderia" onclick="mostrarModo('panaderia')">Panaderia</button>
+    <button onclick="mostrarTurno()">Turno</button>
+    <button onclick="mostrarCuaderno()">Cuaderno</button>
+    <button id="btnUsuario" class="usuario" onclick="mostrarUsuario()">Usuario: Josué</button>
+  </header>
+
+  <main class="contenedor-venta">
+    <section class="panel-izquierdo">
+      <h2 id="tituloModo">Cafeteria</h2>
+      <div id="listaMesas" class="lista-mesas"></div>
+    </section>
+
+    <section class="panel-central">
+      <div id="areaPanaderia" class="area-panaderia"></div>
+      <div class="herramientas-mapa">
+        <button id="btnEditarMesas" class="boton-secundario" onclick="alternarEdicionMesas()">Posición de mesas</button>
+        <button class="boton-secundario" onclick="restaurarPosicionesMesas()">Restaurar</button>
+      </div>
+      <div class="centro-venta">
+        <div class="zona-local" id="zonaLocal">
+          <button class="mesa libre" data-mesa="1" onclick="seleccionarMesa(1)">1</button>
+          <button class="mesa libre" data-mesa="2" onclick="seleccionarMesa(2)">2</button>
+          <button class="mesa libre" data-mesa="3" onclick="seleccionarMesa(3)">3</button>
+          <button class="mesa libre" data-mesa="4" onclick="seleccionarMesa(4)">4</button>
+          <button class="mesa libre" data-mesa="5" onclick="seleccionarMesa(5)">5</button>
+          <button class="mesa libre" data-mesa="6" onclick="seleccionarMesa(6)">6</button>
+          <button class="mesa libre" data-mesa="7" onclick="seleccionarMesa(7)">7</button>
+          <button class="mesa libre" data-mesa="8" onclick="seleccionarMesa(8)">8</button>
+        </div>
+        <aside class="cola-pedidos">
+          <h2>Orden de pedidos</h2>
+          <div id="ordenPedidos" class="lista-orden"></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="panel-derecho">
+      <h2 id="mesaSeleccionada">Seleccione una mesa</h2>
+      <span id="estadoMesa" class="estado-mesa">Sin mesa</span>
+      <div id="clientePanaderia" class="cliente-panaderia">
+        <label for="clienteVenta">Cliente</label>
+        <select id="clienteVenta">
+          <option>Consumidor final</option>
+        </select>
+        <div class="cabecera-compra">
+          <strong>Producto</strong>
+          <strong>Cant.</strong>
+          <strong>Precio</strong>
+        </div>
+      </div>
+      <div id="catalogoVenta" class="catalogo-venta">
+        <div id="categoriasVenta" class="categorias"></div>
+        <div id="productosVenta" class="productos-venta"></div>
+      </div>
+      <h3>Pedido</h3>
+      <ul id="pedidoActual" class="pedido-lista"></ul>
+      <p class="total">Total: $<span id="totalVenta">0</span></p>
+      <div class="acciones-pedido">
+        <button onclick="marcarPreparacion()">En preparación</button>
+        <button class="boton-entregar" onclick="entregarPedido()">Entregar</button>
+        <button onclick="imprimirCompra()">Imprimir compra</button>
+        <button class="boton-cobrar" onclick="abrirCobro()">Cobrar</button>
+      </div>
+    </section>
+  </main>
+
+  <section id="modalPago" class="modal-pago" role="dialog" aria-modal="true" aria-labelledby="tituloPago">
+    <div class="modal-contenido">
+      <div class="titulo-linea">
+        <h2 id="tituloPago">Pago</h2>
+        <button class="boton-redondo" onclick="cerrarModalPago()">X</button>
+      </div>
+      <p>Total a pagar</p>
+      <div class="modal-total">$<span id="totalModal">0</span></div>
+      <p id="estadoPago" class="estado-pago">Faltan $0</p>
+      <div class="campos-pago">
+        <label>
+          <span>Efectivo</span>
+          <input id="pagoEfectivo" type="number" min="0" step="1" value="0" oninput="actualizarEstadoPago()">
+        </label>
+        <label>
+          <span>Transferencia / QR</span>
+          <input id="pagoDigital" type="number" min="0" step="1" value="0" oninput="actualizarEstadoPago()">
+        </label>
+      </div>
+      <button onclick="confirmarPago()">Guardar venta</button>
+    </div>
+  </section>
+
+  <section id="ticketImpresion" class="ticket-impresion"></section>
+  <section id="modalUsuario" class="modal-pago" role="dialog" aria-modal="true" aria-labelledby="tituloUsuario">
+    <div class="modal-contenido">
+      <div class="titulo-linea">
+        <h2 id="tituloUsuario">Iniciar usuario</h2>
+        <button class="boton-redondo" onclick="cerrarUsuario()">X</button>
+      </div>
+      <label class="campo-usuario">
+        <span>Nombre</span>
+        <input id="nombreUsuario" type="text" placeholder="Usuario">
+      </label>
+      <button onclick="guardarUsuarioActual()">Iniciar</button>
+    </div>
+  </section>
+
+  <section id="modalTurno" class="modal-pago" role="dialog" aria-modal="true" aria-labelledby="tituloTurno">
+    <div class="modal-contenido modal-turno">
+      <div class="titulo-linea">
+        <h2 id="tituloTurno">Turno de caja</h2>
+        <button class="boton-redondo" onclick="cerrarTurnoVista()">X</button>
+      </div>
+      <div id="contenidoTurno"></div>
+    </div>
+  </section>
+
+  <section id="modalCuaderno" class="modal-pago" role="dialog" aria-modal="true" aria-labelledby="tituloCuaderno">
+    <div class="modal-contenido modal-cuaderno">
+      <div class="titulo-linea">
+        <h2 id="tituloCuaderno">Cuaderno de ventas</h2>
+        <button class="boton-secundario" onclick="cerrarCuaderno()">Cerrar</button>
+      </div>
+      <div id="listaCuaderno" class="lista-cuaderno"></div>
+    </div>
+  </section>
+  <script src="vender.js"></script>
+</body>
+</html>
