@@ -1,6 +1,8 @@
 const API_BASE_KEY = "ponteDulceApiBase";
 const API_BASE = obtenerApiBase();
 let productosRemotos = [];
+let turnoRemotoCache = null;
+let ventasTurnoRemotas = [];
 
 function obtenerApiBase() {
   const parametros = new URLSearchParams(window.location.search);
@@ -23,6 +25,63 @@ async function apiJson(ruta, opciones = {}) {
   if (!respuesta.ok || data?.ok === false) throw new Error(data?.error || data?.mensaje || "Error del backend");
   return data;
 }
+
+function adaptarTurnoRemoto(remoto) {
+  if (!remoto) return null;
+  const fecha = new Date(remoto.abierto_en || remoto.created_at || Date.now());
+  return {
+    id: remoto.id,
+    estado: remoto.estado || "abierto",
+    usuario: remoto.usuario || "Sin usuario",
+    efectivoInicial: Number(remoto.efectivo_inicial || 0),
+    fecha: fecha.toLocaleDateString("es-AR"),
+    hora: fecha.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+    gastos: [],
+    refuerzos: [],
+    backend: { guardado: true }
+  };
+}
+
+async function cargarTurnoAbiertoBackend() {
+  const remoto = await apiJson("/turnos/abierto");
+  turnoRemotoCache = adaptarTurnoRemoto(remoto);
+  ventasTurnoRemotas = [];
+  if (!turnoRemotoCache) return null;
+
+  const [movimientos, ventas] = await Promise.all([
+    apiJson(`/turnos/${turnoRemotoCache.id}/movimientos`),
+    apiJson("/ventas")
+  ]);
+  turnoRemotoCache.gastos = movimientos
+    .filter((movimiento) => movimiento.tipo === "gasto")
+    .map((movimiento) => ({ detalle: movimiento.detalle, importe: Number(movimiento.importe || 0), fecha: movimiento.creado_en }));
+  turnoRemotoCache.refuerzos = movimientos
+    .filter((movimiento) => movimiento.tipo === "refuerzo")
+    .map((movimiento) => ({ detalle: movimiento.detalle, importe: Number(movimiento.importe || 0), fecha: movimiento.creado_en }));
+  ventasTurnoRemotas = ventas.filter((venta) => Number(venta.turno_id) === Number(turnoRemotoCache.id) && venta.estado !== "cancelada");
+  return turnoRemotoCache;
+}
+
+obtenerTurno = function obtenerTurno() {
+  return turnoRemotoCache;
+};
+
+guardarTurno = function guardarTurno(turno) {
+  turnoRemotoCache = turno;
+};
+
+turnoAbierto = function turnoAbierto() {
+  return turnoRemotoCache && turnoRemotoCache.estado === "abierto" ? turnoRemotoCache : null;
+};
+
+totalesTurno = function totalesTurno(turno) {
+  const ventas = ventasTurnoRemotas.length ? ventasTurnoRemotas : [];
+  const efectivoVentas = ventas.reduce((total, venta) => total + Number(venta.pago?.netoEfectivo ?? (Number(venta.pago?.efectivo || 0) - Number(venta.pago?.vuelto || 0))), 0);
+  const digitalVentas = ventas.reduce((total, venta) => total + Number(venta.pago?.digital || 0), 0);
+  const gastos = (turno.gastos || []).reduce((total, item) => total + Number(item.importe || 0), 0);
+  const refuerzos = (turno.refuerzos || []).reduce((total, item) => total + Number(item.importe || 0), 0);
+  return { efectivoInicial: Number(turno.efectivoInicial || 0), gastos, refuerzos, efectivoVentas, digitalVentas, efectivoTeorico: Number(turno.efectivoInicial || 0) + refuerzos + efectivoVentas - gastos };
+};
 
 function ventaParaBackend(venta) {
   return {
@@ -116,6 +175,22 @@ function construirVentaActual({ origen, pedido, total, pago }) {
   };
 }
 
+abrirCobro = async function abrirCobro() {
+  if (!turnoAbierto()) {
+    try { await cargarTurnoAbiertoBackend(); } catch {}
+  }
+  if (!turnoAbierto()) { alert("Primero abra un turno de caja."); mostrarTurno(); return; }
+  if (modoActual === "cafeteria" && !mesaActual) return alert("Seleccione una mesa.");
+  const total = modoActual === "panaderia" ? calcularTotalPedido(carritoPanaderia) : calcularTotal(mesas[mesaActual]);
+  if (total <= 0) return alert("No hay productos para cobrar.");
+  totalCobroActual = total;
+  document.getElementById("totalModal").textContent = formatoPrecio(total);
+  document.getElementById("pagoEfectivo").value = 0;
+  document.getElementById("pagoDigital").value = 0;
+  actualizarEstadoPago();
+  document.getElementById("modalPago").classList.add("abierto");
+};
+
 confirmarPago = async function confirmarPago() {
   if (modoActual === "cafeteria" && !mesaActual) return;
   const pedido = modoActual === "panaderia" ? carritoPanaderia : mesas[mesaActual].pedido;
@@ -131,6 +206,7 @@ confirmarPago = async function confirmarPago() {
   const venta = construirVentaActual({ origen, pedido, total, pago });
   try {
     const resultado = await guardarVentaEnBackend(venta);
+    await cargarTurnoAbiertoBackend().catch(() => null);
     alert(`Venta N° ${resultado.numero} guardada en Supabase. Total: $${formatoPrecio(total)}`);
   } catch (error) {
     alert(`No se pudo guardar la venta en Supabase: ${error.message}. El pedido sigue en pantalla para reintentar.`);
@@ -143,6 +219,7 @@ confirmarPago = async function confirmarPago() {
 
 mostrarCuaderno = async function mostrarCuaderno() {
   const lista = document.getElementById("listaCuaderno");
+  await cargarTurnoAbiertoBackend().catch(() => null);
   const turno = turnoAbierto();
   document.getElementById("tituloCuaderno").textContent = "Cuaderno";
   lista.innerHTML = '<p class="pedido-vacio">Cargando ventas desde Supabase...</p>';
@@ -156,18 +233,21 @@ mostrarCuaderno = async function mostrarCuaderno() {
   }
 };
 
+mostrarTurno = async function mostrarTurno() {
+  try { await cargarTurnoAbiertoBackend(); } catch (error) { alert(`No se pudo consultar el turno en Supabase: ${error.message}`); }
+  renderizarTurno();
+  document.getElementById("modalTurno").classList.add("abierto");
+};
+
 abrirTurnoCaja = async function abrirTurnoCaja() {
-  const ahora = new Date();
-  const turno = { id: Date.now(), estado: "abierto", usuario: obtenerUsuarioActual(), efectivoInicial: leerImporte("efectivoInicialTurno"), fecha: ahora.toLocaleDateString("es-AR"), hora: ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }), gastos: [], refuerzos: [] };
   try {
-    const remoto = await apiJson("/turnos/abrir", { method: "POST", body: { usuario: turno.usuario, efectivo_inicial: turno.efectivoInicial } });
-    if (remoto?.id) turno.id = remoto.id;
-    turno.backend = { guardado: true };
+    const remoto = await apiJson("/turnos/abrir", { method: "POST", body: { usuario: obtenerUsuarioActual(), efectivo_inicial: leerImporte("efectivoInicialTurno") } });
+    guardarTurno(adaptarTurnoRemoto(remoto));
+    await cargarTurnoAbiertoBackend();
+    if (remoto?.ya_abierto) alert("Ya habia un turno abierto. Se va a usar ese mismo turno en todos los equipos.");
   } catch (error) {
-    alert(`No se pudo abrir el turno en Supabase: ${error.message}. El turno queda abierto solo en este equipo.`);
-    turno.backend = { guardado: false, error: error.message };
+    alert(`No se pudo abrir el turno en Supabase: ${error.message}`);
   }
-  guardarTurno(turno);
   renderizarTurno();
 };
 
@@ -180,12 +260,27 @@ agregarMovimientoCaja = async function agregarMovimientoCaja(tipo) {
   const detalle = document.getElementById(detalleId).value.trim();
   const importe = leerImporte(importeId);
   if (!detalle || importe <= 0) return alert("Complete detalle e importe.");
-  turno[tipo].push({ detalle, importe, fecha: new Date().toLocaleString("es-AR") });
-  guardarTurno(turno);
   try {
     await apiJson("/turnos/movimiento", { method: "POST", body: { turno_id: turno.id, tipo: esGasto ? "gasto" : "refuerzo", detalle, importe } });
+    await cargarTurnoAbiertoBackend();
   } catch (error) {
-    alert(`El movimiento quedo en este equipo, pero no se envio a Supabase: ${error.message}`);
+    alert(`No se pudo guardar el movimiento en Supabase: ${error.message}`);
+  }
+  renderizarTurno();
+};
+
+cerrarCaja = async function cerrarCaja() {
+  const turno = turnoAbierto();
+  if (!turno) return;
+  const totales = totalesTurno(turno);
+  if (!confirm(`Cerrar caja con efectivo teorico de $${formatoPrecio(totales.efectivoTeorico)}?`)) return;
+  try {
+    await apiJson("/turnos/cerrar", { method: "POST", body: { turno_id: turno.id } });
+    turnoRemotoCache = null;
+    ventasTurnoRemotas = [];
+    alert("Caja cerrada en Supabase.");
+  } catch (error) {
+    alert(`No se pudo cerrar la caja en Supabase: ${error.message}`);
   }
   renderizarTurno();
 };
@@ -210,3 +305,4 @@ async function cargarProductosRemotos() {
 }
 
 cargarProductosRemotos();
+cargarTurnoAbiertoBackend().catch(() => null);
