@@ -101,6 +101,11 @@ async function manejar(req, res) {
       return responder(res, 200, turnos[0] || null);
     }
 
+    if (req.method === "GET" && url.pathname === "/api/ventas") {
+      const ventas = await supabase("/ventas?select=*,venta_items(*)&order=id.desc&limit=200");
+      return responder(res, 200, ventas);
+    }
+
     if (req.method === "POST" && url.pathname === "/api/turnos/movimiento") {
       const body = await leerJson(req);
       const movimiento = await supabase("/movimientos_caja", {
@@ -119,7 +124,7 @@ async function manejar(req, res) {
       const venta = await leerJson(req);
       const resultado = await supabase("/rpc/registrar_venta_completa", {
         method: "POST",
-        body: venta
+        body: { payload: venta }
       });
       return responder(res, 201, resultado);
     }
