@@ -26,11 +26,20 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SECRET_KEY = process.env.SUPABASE_SECRET_KEY;
 const PORT = Number(process.env.PORT || 3000);
 
+const productosBase = [
+  { nombre: "Combo desayuno", precio: 3500, categoria: "combos", tipo: "comprado", ingredientes: [] },
+  { nombre: "Cafe con leche", precio: 1400, categoria: "bebidas", tipo: "preparado", ingredientes: [{ nombre: "Cafe", gramos: 50 }] },
+  { nombre: "Te", precio: 1100, categoria: "bebidas", tipo: "preparado", ingredientes: [{ nombre: "Te", gramos: 5 }] },
+  { nombre: "Exprimido naranja", precio: 1800, categoria: "exprimidos", tipo: "preparado", ingredientes: [{ nombre: "Naranja", gramos: 250 }] },
+  { nombre: "Tostado", precio: 2600, categoria: "salado", tipo: "comprado", ingredientes: [] },
+  { nombre: "Medialuna", precio: 700, categoria: "dulce", tipo: "comprado", ingredientes: [] }
+];
+
 function responder(res, status, data) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS,DELETE",
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
   });
   res.end(JSON.stringify(data));
@@ -68,6 +77,75 @@ async function supabase(path, { method = "GET", body } = {}) {
   return data;
 }
 
+function normalizarProducto(producto) {
+  return {
+    id: producto.id,
+    nombre: producto.nombre,
+    precio: Number(producto.precio || 0),
+    categoria: producto.categoria || "otros",
+    tipo: producto.tipo || "comprado",
+    ingredientes: (producto.producto_ingredientes || producto.ingredientes || []).map((ingrediente) => ({
+      id: ingrediente.id,
+      nombre: ingrediente.nombre,
+      gramos: Number(ingrediente.gramos || 0)
+    }))
+  };
+}
+
+async function listarProductos() {
+  const productos = await supabase("/productos?select=*,producto_ingredientes(*)&order=nombre.asc");
+  return productos.map(normalizarProducto);
+}
+
+async function crearProducto(producto) {
+  const creado = await supabase("/productos", {
+    method: "POST",
+    body: {
+      nombre: producto.nombre,
+      precio: Number(producto.precio || 0),
+      categoria: producto.categoria || "otros",
+      tipo: producto.tipo || "comprado"
+    }
+  });
+
+  const productoId = creado[0].id;
+  const ingredientes = producto.tipo === "preparado" ? producto.ingredientes || [] : [];
+  if (ingredientes.length) {
+    await supabase("/producto_ingredientes", {
+      method: "POST",
+      body: ingredientes.map((ingrediente) => ({
+        producto_id: productoId,
+        nombre: ingrediente.nombre,
+        gramos: Number(ingrediente.gramos || 0)
+      }))
+    });
+  }
+
+  const productos = await supabase(`/productos?id=eq.${productoId}&select=*,producto_ingredientes(*)`);
+  return normalizarProducto(productos[0]);
+}
+
+async function asegurarProductosBase() {
+  const productos = await listarProductos();
+  if (productos.length) return productos;
+  for (const producto of productosBase) await crearProducto(producto);
+  return listarProductos();
+}
+
+function agruparStock(movimientos) {
+  const stock = new Map();
+  for (const movimiento of movimientos) {
+    const nombre = movimiento.ingrediente;
+    if (!nombre) continue;
+    const clave = nombre.trim().toLowerCase();
+    const actual = stock.get(clave) || { nombre, gramos: 0 };
+    actual.nombre = nombre;
+    actual.gramos += Number(movimiento.gramos || 0);
+    stock.set(clave, actual);
+  }
+  return [...stock.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
 async function manejar(req, res) {
   if (req.method === "OPTIONS") return responder(res, 200, { ok: true });
 
@@ -79,8 +157,40 @@ async function manejar(req, res) {
     }
 
     if (req.method === "GET" && url.pathname === "/api/productos") {
-      const productos = await supabase("/productos?select=*,producto_ingredientes(*)");
+      const productos = await asegurarProductosBase();
       return responder(res, 200, productos);
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/productos") {
+      const body = await leerJson(req);
+      if (!body.nombre || !Number(body.precio)) return responder(res, 400, { ok: false, error: "Complete nombre y precio del producto." });
+      const producto = await crearProducto(body);
+      return responder(res, 201, producto);
+    }
+
+    const productoMatch = url.pathname.match(/^\/api\/productos\/(\d+)$/);
+    if (req.method === "DELETE" && productoMatch) {
+      const productoId = productoMatch[1];
+      await supabase(`/producto_ingredientes?producto_id=eq.${productoId}`, { method: "DELETE" });
+      await supabase(`/productos?id=eq.${productoId}`, { method: "DELETE" });
+      return responder(res, 200, { ok: true });
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/stock") {
+      const movimientos = await supabase("/stock_movimientos?select=ingrediente,gramos,tipo&order=creado_en.desc");
+      return responder(res, 200, agruparStock(movimientos));
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/stock/compra") {
+      const body = await leerJson(req);
+      const nombre = String(body.nombre || "").trim();
+      const gramos = Number(body.gramos || 0);
+      if (!nombre || gramos <= 0) return responder(res, 400, { ok: false, error: "Complete ingrediente y cantidad." });
+      const movimiento = await supabase("/stock_movimientos", {
+        method: "POST",
+        body: { ingrediente: nombre, gramos, tipo: "compra" }
+      });
+      return responder(res, 201, movimiento[0]);
     }
 
     if (req.method === "POST" && url.pathname === "/api/turnos/abrir") {
