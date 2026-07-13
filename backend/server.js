@@ -39,7 +39,7 @@ function responder(res, status, data) {
   res.writeHead(status, {
     "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS,DELETE",
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS,DELETE",
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
   });
   res.end(JSON.stringify(data));
@@ -180,6 +180,8 @@ async function manejar(req, res) {
 
     if (req.method === "POST" && url.pathname === "/api/turnos/abrir") {
       const body = await leerJson(req);
+      const turnosAbiertos = await supabase("/turnos?estado=eq.abierto&order=abierto_en.desc&limit=1");
+      if (turnosAbiertos[0]) return responder(res, 200, { ...turnosAbiertos[0], ya_abierto: true });
       const turno = await supabase("/turnos", { method: "POST", body: { usuario: body.usuario || "Sin usuario", efectivo_inicial: Number(body.efectivo_inicial || 0), estado: "abierto" } });
       return responder(res, 201, turno[0]);
     }
@@ -187,6 +189,18 @@ async function manejar(req, res) {
     if (req.method === "GET" && url.pathname === "/api/turnos/abierto") {
       const turnos = await supabase("/turnos?estado=eq.abierto&order=abierto_en.desc&limit=1");
       return responder(res, 200, turnos[0] || null);
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/turnos/cerrar") {
+      const body = await leerJson(req);
+      let turnoId = body.turno_id;
+      if (!turnoId) {
+        const turnos = await supabase("/turnos?estado=eq.abierto&order=abierto_en.desc&limit=1");
+        turnoId = turnos[0]?.id;
+      }
+      if (!turnoId) return responder(res, 404, { ok: false, error: "No hay un turno abierto para cerrar." });
+      const cerrado = await supabase(`/turnos?id=eq.${turnoId}`, { method: "PATCH", body: { estado: "cerrado", cerrado_en: new Date().toISOString() } });
+      return responder(res, 200, cerrado[0]);
     }
 
     if (req.method === "GET" && url.pathname === "/api/ventas") return responder(res, 200, await supabase("/ventas?select=*,venta_items(*)&order=id.desc&limit=200"));
