@@ -74,7 +74,7 @@ function renderVentas(ventas) {
       <div>
         <h3>Venta ${venta.numero || venta.id}</h3>
         <p class="control-detalle">
-          ${fechaHora(venta.creado_en || venta.created_at)} |
+          ${fechaHora(venta.creada_en || venta.creado_en || venta.created_at)} |
           ${venta.usuario || "Sin usuario"} |
           ${medioPago(venta)} |
           ${venta.origen || "Venta"}
