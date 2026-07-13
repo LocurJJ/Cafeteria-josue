@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control - Ponte Dulce</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="control.css">
+  <script defer src="control.js"></script>
+</head>
+<body>
+  <header class="barra-superior">
+    <button onclick="location.href='index.html'">Inicio</button>
+    <button class="activo">Control</button>
+    <button onclick="actualizarControl()">Actualizar</button>
+    <span class="usuario">Solo lectura</span>
+  </header>
+
+  <main class="panel-control">
+    <section class="control-encabezado">
+      <div>
+        <h1>Control de cafeteria</h1>
+        <p id="estadoControl" class="pedido-vacio">Cargando datos...</p>
+      </div>
+      <strong id="ultimaActualizacion">-</strong>
+    </section>
+
+    <section class="control-tarjetas">
+      <article><span>Ventas del turno</span><strong id="totalVentas">$0</strong></article>
+      <article><span>Efectivo</span><strong id="totalEfectivo">$0</strong></article>
+      <article><span>Transferencia / QR</span><strong id="totalDigital">$0</strong></article>
+      <article><span>Cantidad de ventas</span><strong id="cantidadVentas">0</strong></article>
+    </section>
+
+    <section class="control-grid">
+      <article class="panel-turno">
+        <h2>Turno</h2>
+        <div id="resumenTurno" class="control-resumen"></div>
+      </article>
+      <article class="panel-turno">
+        <h2>Cuaderno</h2>
+        <div id="ventasControl" class="lista-cuaderno"></div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>
