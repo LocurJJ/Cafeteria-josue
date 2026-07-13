@@ -106,6 +106,13 @@ async function manejar(req, res) {
       return responder(res, 200, ventas);
     }
 
+    const movimientosMatch = url.pathname.match(/^\/api\/turnos\/(\d+)\/movimientos$/);
+    if (req.method === "GET" && movimientosMatch) {
+      const turnoId = movimientosMatch[1];
+      const movimientos = await supabase(`/movimientos_caja?turno_id=eq.${turnoId}&order=creado_en.desc`);
+      return responder(res, 200, movimientos);
+    }
+
     if (req.method === "POST" && url.pathname === "/api/turnos/movimiento") {
       const body = await leerJson(req);
       const movimiento = await supabase("/movimientos_caja", {
