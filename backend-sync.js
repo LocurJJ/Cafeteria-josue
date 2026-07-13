@@ -1,5 +1,6 @@
 const API_BASE_KEY = "ponteDulceApiBase";
 const API_BASE = obtenerApiBase();
+let productosRemotos = [];
 
 function obtenerApiBase() {
   const parametros = new URLSearchParams(window.location.search);
@@ -9,7 +10,7 @@ function obtenerApiBase() {
     localStorage.setItem(API_BASE_KEY, limpia);
     return limpia;
   }
-  return localStorage.getItem(API_BASE_KEY) || "http://localhost:3000/api";
+  return localStorage.getItem(API_BASE_KEY) || "https://cafeteria-josue.onrender.com/api";
 }
 
 async function apiJson(ruta, opciones = {}) {
@@ -44,15 +45,12 @@ function ventaParaBackend(venta) {
 async function guardarVentaEnBackend(venta) {
   const resultado = await apiJson("/ventas", { method: "POST", body: ventaParaBackend(venta) });
   venta.backend = { guardada: true, ventaId: resultado.venta_id, numero: resultado.numero };
-  const ventas = obtenerVentas();
-  const encontrada = ventas.find((item) => item.numero === venta.numero);
-  if (encontrada) encontrada.backend = venta.backend;
-  guardarVentas(ventas);
+  venta.numero = resultado.numero;
   return resultado;
 }
 
 function fechaHoraDesdeSupabase(venta) {
-  const valor = venta.creado_en || venta.created_at || venta.fecha || venta.inserted_at;
+  const valor = venta.creada_en || venta.creado_en || venta.created_at || venta.fecha || venta.inserted_at;
   const fecha = valor ? new Date(valor) : new Date();
   return {
     fecha: fecha.toLocaleDateString("es-AR"),
@@ -92,6 +90,32 @@ function ventaRemotaParaCuaderno(venta) {
   };
 }
 
+function construirVentaActual({ origen, pedido, total, pago }) {
+  const ahora = new Date();
+  const turno = turnoAbierto();
+  return {
+    numero: null,
+    turnoId: turno ? turno.id : null,
+    usuario: obtenerUsuarioActual(),
+    origen,
+    medio: resumenMedioPago(pago),
+    pago,
+    total,
+    estado: "activa",
+    facturada: false,
+    fecha: ahora.toLocaleDateString("es-AR"),
+    hora: ahora.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+    detalle: pedido.map((item) => ({
+      id: item.id || null,
+      nombre: item.nombre,
+      cantidad: item.cantidad,
+      precio: item.precio,
+      subtotal: item.precio * item.cantidad,
+      ingredientes: item.ingredientes || []
+    }))
+  };
+}
+
 confirmarPago = async function confirmarPago() {
   if (modoActual === "cafeteria" && !mesaActual) return;
   const pedido = modoActual === "panaderia" ? carritoPanaderia : mesas[mesaActual].pedido;
@@ -104,16 +128,14 @@ confirmarPago = async function confirmarPago() {
   if (efectivo + digital < total) return alert(`Faltan $${formatoPrecio(total - efectivo - digital)} para completar el pago.`);
   const efectivoNecesario = Math.max(0, total - digital);
   const pago = { efectivo, digital, vuelto: Math.max(0, efectivo - efectivoNecesario), netoEfectivo: Math.min(efectivo, efectivoNecesario) };
-  descontarIngredientes(pedido);
-  const venta = registrarVenta({ origen, pedido, total, pago });
-  let avisoBackend = "";
+  const venta = construirVentaActual({ origen, pedido, total, pago });
   try {
     const resultado = await guardarVentaEnBackend(venta);
-    if (resultado?.numero) avisoBackend = `\nGuardada en Supabase como venta ${resultado.numero}.`;
+    alert(`Venta N° ${resultado.numero} guardada en Supabase. Total: $${formatoPrecio(total)}`);
   } catch (error) {
-    avisoBackend = `\nNo se pudo enviar a Supabase: ${error.message}. Quedo guardada en este equipo.`;
+    alert(`No se pudo guardar la venta en Supabase: ${error.message}. El pedido sigue en pantalla para reintentar.`);
+    return;
   }
-  alert(`Venta N° ${venta.numero} guardada. Total: $${formatoPrecio(total)}${avisoBackend}`);
   if (modoActual === "panaderia") { carritoPanaderia = []; cerrarModalPago(); actualizarVistaPanaderia(); renderizarMesas(); return; }
   mesas[mesaActual] = { estado: "libre", pedido: [], creada: 0 };
   cerrarModalPago(); actualizarVistaMesa();
@@ -123,21 +145,14 @@ mostrarCuaderno = async function mostrarCuaderno() {
   const lista = document.getElementById("listaCuaderno");
   const turno = turnoAbierto();
   document.getElementById("tituloCuaderno").textContent = "Cuaderno";
-  lista.innerHTML = '<p class="pedido-vacio">Cargando ventas...</p>';
+  lista.innerHTML = '<p class="pedido-vacio">Cargando ventas desde Supabase...</p>';
   document.getElementById("modalCuaderno").classList.add("abierto");
-  let ventas = obtenerVentas();
-  let origenDatos = "local";
   try {
-    const ventasRemotas = await apiJson("/ventas");
-    ventas = ventasRemotas.map(ventaRemotaParaCuaderno);
-    origenDatos = "Supabase";
+    const ventas = (await apiJson("/ventas")).map(ventaRemotaParaCuaderno);
+    const ventasVisibles = turno ? ventas.filter((venta) => Number(venta.turnoId) === Number(turno.id)) : ventas;
+    lista.innerHTML = `<p class="pedido-vacio">Historial guardado en Supabase. <small>Fuente: Supabase.</small></p>${ventasVisibles.length ? ventasVisibles.map((venta) => `<div class="venta-cuaderno ${venta.estado === "cancelada" ? "cancelada" : ""}"><div><strong>Venta ${venta.numero}</strong><small>${venta.fecha}, ${venta.hora} | ${venta.usuario || "Sin usuario"} | ${venta.medio}${venta.origen ? ` | ${venta.origen}` : ""}${venta.estado === "cancelada" ? " | Cancelada" : ""}${venta.facturada ? " | Facturada" : ""}</small></div><strong>$${formatoPrecio(venta.total)}</strong><button class="boton-facturar" onclick="facturarVenta(${venta.numero})" ${venta.estado === "cancelada" || venta.facturada ? "disabled" : ""}>Facturar</button></div>`).join("") : '<p class="pedido-vacio">Todavia no hay ventas en este turno.</p>'}`;
   } catch (error) {
-    origenDatos = `local, no se pudo leer Supabase: ${error.message}`;
-  }
-  if (!ventas.length) lista.innerHTML = '<p class="pedido-vacio">Todavia no hay ventas guardadas.</p>';
-  else {
-    const ventasVisibles = origenDatos === "Supabase" ? ventas : (turno ? ventas.filter((venta) => venta.turnoId === turno.id) : ventas);
-    lista.innerHTML = `<p class="pedido-vacio">${origenDatos === "Supabase" ? "Historial guardado en Supabase." : (turno ? `Historial del turno abierto desde ${turno.fecha}, ${turno.hora}.` : "Historial de ventas guardadas.")} <small>Fuente: ${origenDatos}.</small></p>${ventasVisibles.length ? ventasVisibles.map((venta) => `<div class="venta-cuaderno ${venta.estado === "cancelada" ? "cancelada" : ""}"><div><strong>Venta ${venta.numero}</strong><small>${venta.fecha}, ${venta.hora} | ${venta.usuario || "Sin usuario"} | ${venta.medio}${venta.origen ? ` | ${venta.origen}` : ""}${venta.estado === "cancelada" ? " | Cancelada" : ""}${venta.facturada ? " | Facturada" : ""}</small></div><strong>$${formatoPrecio(venta.total)}</strong><button class="boton-facturar" onclick="facturarVenta(${venta.numero})" ${venta.estado === "cancelada" || venta.facturada ? "disabled" : ""}>Facturar</button><button class="boton-redondo" onclick="cancelarVenta(${venta.numero})" ${venta.estado === "cancelada" ? "disabled" : ""}>X</button></div>`).join("") : '<p class="pedido-vacio">Todavia no hay ventas en este turno.</p>'}`;
+    lista.innerHTML = `<p class="pedido-vacio">No se pudo leer Supabase: ${error.message}</p>`;
   }
 };
 
@@ -176,16 +191,22 @@ agregarMovimientoCaja = async function agregarMovimientoCaja(tipo) {
 };
 
 facturarVenta = async function facturarVenta(numeroVenta) {
-  const ventas = obtenerVentas();
-  const venta = ventas.find((item) => item.numero === numeroVenta);
-  if (!venta || venta.estado === "cancelada") return;
-  try {
-    venta.factura = await apiJson("/facturar", { method: "POST", body: venta });
-    venta.facturada = true;
-    guardarVentas(ventas);
-    alert(`Venta ${numeroVenta} facturada.`);
-    mostrarCuaderno();
-  } catch {
-    alert("Falta conectar el backend de ARCA. El boton ya queda preparado para facturar automaticamente cuando exista /api/facturar.");
-  }
+  alert("Falta conectar el backend de ARCA. El boton ya queda preparado para facturar automaticamente cuando exista /api/facturar.");
 };
+
+obtenerProductos = function obtenerProductos() {
+  return productosRemotos.length ? productosRemotos : productosBase;
+};
+
+async function cargarProductosRemotos() {
+  try {
+    productosRemotos = await apiJson("/productos");
+    renderizarCategorias();
+    renderizarProductos();
+    renderizarMesas();
+  } catch (error) {
+    alert(`No se pudieron cargar productos desde Supabase: ${error.message}`);
+  }
+}
+
+cargarProductosRemotos();
