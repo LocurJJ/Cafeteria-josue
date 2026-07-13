@@ -53,9 +53,7 @@ async function leerJson(req) {
 }
 
 async function supabase(path, { method = "GET", body } = {}) {
-  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
-    throw new Error("Faltan SUPABASE_URL o SUPABASE_SECRET_KEY en backend/.env");
-  }
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) throw new Error("Faltan SUPABASE_URL o SUPABASE_SECRET_KEY en backend/.env");
 
   const respuesta = await fetch(`${SUPABASE_URL}/rest/v1${path}`, {
     method,
@@ -70,10 +68,7 @@ async function supabase(path, { method = "GET", body } = {}) {
 
   const texto = await respuesta.text();
   const data = texto ? JSON.parse(texto) : null;
-  if (!respuesta.ok) {
-    const detalle = data?.message || data?.hint || texto || "Error de Supabase";
-    throw new Error(detalle);
-  }
+  if (!respuesta.ok) throw new Error(data?.message || data?.hint || texto || "Error de Supabase");
   return data;
 }
 
@@ -100,12 +95,7 @@ async function listarProductos() {
 async function crearProducto(producto) {
   const creado = await supabase("/productos", {
     method: "POST",
-    body: {
-      nombre: producto.nombre,
-      precio: Number(producto.precio || 0),
-      categoria: producto.categoria || "otros",
-      tipo: producto.tipo || "comprado"
-    }
+    body: { nombre: producto.nombre, precio: Number(producto.precio || 0), categoria: producto.categoria || "otros", tipo: producto.tipo || "comprado" }
   });
 
   const productoId = creado[0].id;
@@ -113,11 +103,7 @@ async function crearProducto(producto) {
   if (ingredientes.length) {
     await supabase("/producto_ingredientes", {
       method: "POST",
-      body: ingredientes.map((ingrediente) => ({
-        producto_id: productoId,
-        ingrediente: ingrediente.nombre,
-        gramos: Number(ingrediente.gramos || 0)
-      }))
+      body: ingredientes.map((ingrediente) => ({ producto_id: productoId, ingrediente: ingrediente.nombre, gramos: Number(ingrediente.gramos || 0) }))
     });
   }
 
@@ -127,8 +113,19 @@ async function crearProducto(producto) {
 
 async function asegurarProductosBase() {
   const productos = await listarProductos();
-  if (productos.length) return productos;
-  for (const producto of productosBase) await crearProducto(producto);
+  for (const productoBase of productosBase) {
+    const existente = productos.find((producto) => producto.nombre.toLowerCase() === productoBase.nombre.toLowerCase());
+    if (!existente) {
+      await crearProducto(productoBase);
+      continue;
+    }
+    if (productoBase.tipo === "preparado" && !existente.ingredientes.length) {
+      await supabase("/producto_ingredientes", {
+        method: "POST",
+        body: productoBase.ingredientes.map((ingrediente) => ({ producto_id: existente.id, ingrediente: ingrediente.nombre, gramos: Number(ingrediente.gramos || 0) }))
+      });
+    }
+  }
   return listarProductos();
 }
 
@@ -148,14 +145,11 @@ function agruparStock(movimientos) {
 
 async function manejar(req, res) {
   if (req.method === "OPTIONS") return responder(res, 200, { ok: true });
-
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   try {
     if (req.method === "GET" && url.pathname === "/api/health") return responder(res, 200, { ok: true, servicio: "cafeteria-backend" });
-
     if (req.method === "GET" && url.pathname === "/api/productos") return responder(res, 200, await asegurarProductosBase());
-
     if (req.method === "POST" && url.pathname === "/api/productos") {
       const body = await leerJson(req);
       if (!body.nombre || !Number(body.precio)) return responder(res, 400, { ok: false, error: "Complete nombre y precio del producto." });
@@ -195,17 +189,10 @@ async function manejar(req, res) {
       return responder(res, 200, turnos[0] || null);
     }
 
-    if (req.method === "GET" && url.pathname === "/api/ventas") {
-      const ventas = await supabase("/ventas?select=*,venta_items(*)&order=id.desc&limit=200");
-      return responder(res, 200, ventas);
-    }
+    if (req.method === "GET" && url.pathname === "/api/ventas") return responder(res, 200, await supabase("/ventas?select=*,venta_items(*)&order=id.desc&limit=200"));
 
     const movimientosMatch = url.pathname.match(/^\/api\/turnos\/(\d+)\/movimientos$/);
-    if (req.method === "GET" && movimientosMatch) {
-      const turnoId = movimientosMatch[1];
-      const movimientos = await supabase(`/movimientos_caja?turno_id=eq.${turnoId}&order=creado_en.desc`);
-      return responder(res, 200, movimientos);
-    }
+    if (req.method === "GET" && movimientosMatch) return responder(res, 200, await supabase(`/movimientos_caja?turno_id=eq.${movimientosMatch[1]}&order=creado_en.desc`));
 
     if (req.method === "POST" && url.pathname === "/api/turnos/movimiento") {
       const body = await leerJson(req);
@@ -215,12 +202,10 @@ async function manejar(req, res) {
 
     if (req.method === "POST" && url.pathname === "/api/ventas") {
       const venta = await leerJson(req);
-      const resultado = await supabase("/rpc/registrar_venta_completa", { method: "POST", body: { payload: venta } });
-      return responder(res, 201, resultado);
+      return responder(res, 201, await supabase("/rpc/registrar_venta_completa", { method: "POST", body: { payload: venta } }));
     }
 
     if (req.method === "POST" && url.pathname === "/api/facturar") return responder(res, 501, { ok: false, mensaje: "Facturacion ARCA pendiente. Este endpoint queda reservado para la integracion." });
-
     return responder(res, 404, { ok: false, error: "Ruta no encontrada" });
   } catch (error) {
     return responder(res, 500, { ok: false, error: error.message });
